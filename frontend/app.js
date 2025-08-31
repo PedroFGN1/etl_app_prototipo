@@ -86,20 +86,37 @@ function handleFileSelect(type, file) {
         return;
     }
     
-    // Store file
-    uploadedFiles[type] = file;
-    
-    // Update UI
-    updateFileInfo(type, file);
-    updateProcessButton();
-    
-    addLogMessage({
-        timestamp: new Date().toLocaleString('pt-BR'),
-        level: 'SUCCESS',
-        color: '#28a745',
-        message: `Arquivo de ${type} carregado: ${file.name}`,
-        details: `Tamanho: ${formatFileSize(file.size)}`
-    });
+    // Ler o conteúdo do arquivo como Base64
+    const reader = new FileReader();
+    reader.onload = async function(event) {
+        const base64data = event.target.result.split(",")[1]; // Remove o prefixo data:image/png;base64,
+
+        // Chamar a função de upload do backend
+        const uploadResult = await eel.upload_file(file.name, base64data)();
+
+        if (uploadResult.success) {
+            uploadedFiles[type] = file; // Armazenar o objeto File original
+            updateFileInfo(type, file);
+            updateProcessButton();
+
+            addLogMessage({
+                timestamp: new Date().toLocaleString("pt-BR"),
+                level: "SUCCESS",
+                color: "#28a745",
+                message: `Arquivo de ${type} carregado e enviado: ${file.name}`,
+                details: `Tamanho: ${formatFileSize(file.size)}`
+            });
+        } else {
+            addLogMessage({
+                timestamp: new Date().toLocaleString("pt-BR"),
+                level: "ERROR",
+                color: "#dc3545",
+                message: `Erro ao enviar arquivo de ${type}: ${file.name}`,
+                details: uploadResult.error
+            });
+        }
+    };
+    reader.readAsDataURL(file);
 }
 
 function updateFileInfo(type, file) {
@@ -118,27 +135,43 @@ function updateFileInfo(type, file) {
     fileSize.textContent = formatFileSize(file.size);
 }
 
-function removeFile(type) {
-    uploadedFiles[type] = null;
+async function removeFile(type) {
+    const fileToRemove = uploadedFiles[type];
+    if (!fileToRemove) return;
+
+    // Chamar a função de exclusão do backend
+    const deleteResult = await eel.delete_uploaded_file(fileToRemove.name)();
+
+    if (deleteResult.success) {
+        uploadedFiles[type] = null;
     
-    // Reset UI
-    const uploadArea = document.getElementById(`${type}Upload`);
-    const fileInfo = document.getElementById(`${type}Info`);
-    const fileInput = document.getElementById(`${type}File`);
-    
-    uploadArea.style.display = 'block';
-    fileInfo.style.display = 'none';
-    fileInput.value = '';
-    
-    updateProcessButton();
-    
-    addLogMessage({
-        timestamp: new Date().toLocaleString('pt-BR'),
-        level: 'INFO',
-        color: '#17a2b8',
-        message: `Arquivo de ${type} removido`,
-        details: ''
-    });
+        // Reset UI
+        const uploadArea = document.getElementById(`${type}Upload`);
+        const fileInfo = document.getElementById(`${type}Info`);
+        const fileInput = document.getElementById(`${type}File`);
+        
+        uploadArea.style.display = 'block';
+        fileInfo.style.display = 'none';
+        fileInput.value = '';
+        
+        updateProcessButton();
+        
+        addLogMessage({
+            timestamp: new Date().toLocaleString('pt-BR'),
+            level: 'INFO',
+            color: '#17a2b8',
+            message: `Arquivo de ${type} removido`,
+            details: ''
+        });
+    } else {
+            addLogMessage({
+                timestamp: new Date().toLocaleString('pt-BR'),
+                level: 'ERROR',
+                color: '#dc3545',
+                message: `Erro ao remover arquivo de ${type}: ${fileToRemove.name}`,
+                details: deleteResult.error
+            });
+        }
 }
 
 function updateProcessButton() {
@@ -606,7 +639,7 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// Eel callback functions (called from Python)
+// Eel callback functions (chamadas pelo backend Python)
 eel.expose(add_log_message);
 function add_log_message(logEntry) {
     addLogMessage(logEntry);

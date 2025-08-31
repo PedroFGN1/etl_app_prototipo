@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple, Any
 import traceback
 
 from .config import config
-from .logger import log_info, log_error, log_success, log_warning, etl_logger
+from .logger import log_info, log_error, log_success, log_warning, log_critical, etl_logger
 from .extractor import data_extractor, extract_data
 from .transformer import data_transformer
 from .loader import data_loader

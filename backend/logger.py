@@ -77,7 +77,7 @@ class ETLLogger:
         elif level == LogLevel.INFO:
             self.logger.info(message)
         elif level == LogLevel.SUCCESS:
-            self.logger.info(f"✓ {message}")
+            self.logger.info(f"✔ {message}")
         elif level == LogLevel.WARNING:
             self.logger.warning(message)
         elif level == LogLevel.ERROR:
